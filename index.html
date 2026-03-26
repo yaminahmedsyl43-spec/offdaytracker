@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Off Day Tracker — Yamin Ahmed</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --grid: rgba(255,255,255,0.04);
+    --card: rgba(255,255,255,0.05);
+    --card-border: rgba(255,255,255,0.09);
+    --got: #22c55e;
+    --got-dim: rgba(34,197,94,0.15);
+    --missed: #ef4444;
+    --missed-dim: rgba(239,68,68,0.15);
+    --accent: #f59e0b;
+    --accent-dim: rgba(245,158,11,0.12);
+    --text: #f1f5f9;
+    --text-muted: #64748b;
+    --text-sub: #94a3b8;
+    --radius: 16px;
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-head);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(245,158,11,0.06) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 100px;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 32px;
+    animation: fadeDown 0.5s ease both;
+  }
+
+  .header-badge {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(245,158,11,0.25);
+    padding: 4px 12px;
+    border-radius: 100px;
+    margin-bottom: 12px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+
+  .header h1 span {
+    color: var(--accent);
+  }
+
+  .header-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(12px);
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .card-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--card-border);
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.4s 0.05s ease both;
+  }
+
+  .stat-box {
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 14px 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-box.got { border-color: rgba(34,197,94,0.3); }
+  .stat-box.got::before { background: var(--got-dim); }
+  .stat-box.missed { border-color: rgba(239,68,68,0.3); }
+  .stat-box.missed::before { background: var(--missed-dim); }
+  .stat-box.balance { border-color: rgba(245,158,11,0.3); }
+  .stat-box.balance::before { background: var(--accent-dim); }
+
+  .stat-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  .stat-num {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    position: relative;
+  }
+
+  .stat-box.got .stat-num { color: var(--got); }
+  .stat-box.missed .stat-num { color: var(--missed); }
+  .stat-box.balance .stat-num { color: var(--accent); }
+
+  .stat-lbl {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-top: 4px;
+    position: relative;
+  }
+
+  /* Chart */
+  .chart-wrap {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    animation: fadeUp 0.4s 0.1s ease both;
+  }
+
+  .donut-container {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+  }
+
+  .donut-container svg { transform: rotate(-90deg); }
+
+  .donut-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .donut-pct {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--got);
+    line-height: 1;
+  }
+
+  .donut-pct-label {
+    font-family: var(--font-mono);
+    font-size: 8px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .chart-legend {
+    flex: 1;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-info { flex: 1; }
+
+  .legend-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-sub);
+  }
+
+  .legend-val {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* Balance editor */
+  .balance-editor {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: fadeUp 0.4s 0.15s ease both;
+  }
+
+  .bal-label { flex: 1; }
+  .bal-label-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .bal-label-sub {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+  }
+
+  .bal-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .bal-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--card-border);
+    background: rgba(255,255,255,0.07);
+    color: var(--text);
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-family: var(--font-head);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .bal-btn:hover { background: rgba(255,255,255,0.12); border-color: var(--accent); color: var(--accent); }
+
+  .bal-num {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--accent);
+    width: 40px;
+    text-align: center;
+    font-family: var(--font-mono);
+  }
+
+  /* Add entry */
+  .add-card {
+    animation: fadeUp 0.4s 0.2s ease both;
+  }
+
+  .date-input {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 13px;
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+
+  .date-input:focus { border-color: var(--accent); }
+  .date-input::-webkit-calendar-picker-indicator { filter: invert(0.7); cursor: pointer; }
+
+  .btn-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .btn {
+    padding: 14px 12px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+    font-family: var(--font-head);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .btn-got {
+    background: var(--got-dim);
+    border-color: rgba(34,197,94,0.35);
+    color: var(--got);
+  }
+
+  .btn-got:hover { background: rgba(34,197,94,0.25); transform: translateY(-1px); }
+
+  .btn-missed {
+    background: var(--missed-dim);
+    border-color: rgba(239,68,68,0.35);
+    color: var(--missed);
+  }
+
+  .btn-missed:hover { background: rgba(239,68,68,0.25); transform: translateY(-1px); }
+
+  /* History */
+  .history-card {
+    animation: fadeUp 0.4s 0.25s ease both;
+  }
+
+  .history-empty {
+    text-align: center;
+    padding: 30px 0;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--card-border);
+    border-radius: 11px;
+    padding: 11px 14px;
+    transition: all 0.2s;
+    animation: slideIn 0.25s ease both;
+  }
+
+  .entry.got-entry { border-left: 3px solid var(--got); }
+  .entry.missed-entry { border-left: 3px solid var(--missed); }
+
+  .entry-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .entry.got-entry .entry-dot { background: var(--got); box-shadow: 0 0 8px var(--got); }
+  .entry.missed-entry .entry-dot { background: var(--missed); box-shadow: 0 0 8px var(--missed); }
+
+  .entry-info { flex: 1; }
+
+  .entry-date {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .entry-status {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    margin-top: 2px;
+  }
+
+  .entry.got-entry .entry-status { color: var(--got); }
+  .entry.missed-entry .entry-status { color: var(--missed); }
+
+  .entry-del {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(239,68,68,0.08);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: rgba(239,68,68,0.7);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .entry-del:hover { background: rgba(239,68,68,0.2); color: var(--missed); }
+
+  /* Export btn */
+  .export-btn {
+    width: 100%;
+    padding: 15px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(245,158,11,0.1));
+    border: 1px solid rgba(245,158,11,0.35);
+    color: var(--accent);
+    font-family: var(--font-head);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    animation: fadeUp 0.4s 0.3s ease both;
+  }
+
+  .export-btn:hover { background: linear-gradient(135deg, rgba(245,158,11,0.3), rgba(245,158,11,0.18)); transform: translateY(-1px); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: rgba(20,20,28,0.95);
+    border: 1px solid var(--card-border);
+    border-radius: 100px;
+    padding: 10px 20px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text);
+    z-index: 999;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    backdrop-filter: blur(12px);
+  }
+
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Export overlay (hidden) */
+  #export-frame {
+    position: fixed;
+    top: -9999px;
+    left: -9999px;
+    width: 480px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-head);
+    padding: 32px 28px;
+    border: 1px solid var(--card-border);
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-12px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="main-app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-badge">Weekly Tracker</div>
+    <h1>Off Day<br><span>Tracker</span></h1>
+    <div class="header-sub">Yamin Ahmed · Personal Dashboard</div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-box got">
+      <div class="stat-num" id="stat-got">0</div>
+      <div class="stat-lbl">Got Off</div>
+    </div>
+    <div class="stat-box missed">
+      <div class="stat-num" id="stat-missed">0</div>
+      <div class="stat-lbl">Missed</div>
+    </div>
+    <div class="stat-box balance">
+      <div class="stat-num" id="stat-balance">0</div>
+      <div class="stat-lbl">Balance</div>
+    </div>
+  </div>
+
+  <!-- Chart Card -->
+  <div class="card chart-wrap">
+    <div class="donut-container">
+      <svg width="140" height="140" viewBox="0 0 140 140">
+        <circle id="donut-bg" cx="70" cy="70" r="54" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="20"/>
+        <circle id="donut-missed" cx="70" cy="70" r="54" fill="none" stroke="#ef4444" stroke-width="20" stroke-dasharray="0 339.292" stroke-linecap="round"/>
+        <circle id="donut-got" cx="70" cy="70" r="54" fill="none" stroke="#22c55e" stroke-width="20" stroke-dasharray="0 339.292" stroke-linecap="round"/>
+      </svg>
+      <div class="donut-center">
+        <div class="donut-pct" id="donut-pct">—</div>
+        <div class="donut-pct-label">got off</div>
+      </div>
+    </div>
+    <div class="chart-legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#22c55e;box-shadow:0 0 8px #22c55e;"></div>
+        <div class="legend-info">
+          <div class="legend-name">Got Off</div>
+          <div class="legend-val" id="leg-got">0 days</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#ef4444;box-shadow:0 0 8px #ef4444;"></div>
+        <div class="legend-info">
+          <div class="legend-name">Missed Off</div>
+          <div class="legend-val" id="leg-missed">0 days</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#f59e0b;box-shadow:0 0 8px #f59e0b;"></div>
+        <div class="legend-info">
+          <div class="legend-name">Pending Balance</div>
+          <div class="legend-val" id="leg-bal">0 days</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Balance Control -->
+  <div class="card balance-editor">
+    <div class="bal-label">
+      <div class="bal-label-title">Pending Off Days</div>
+      <div class="bal-label-sub">Manual balance control</div>
+    </div>
+    <div class="bal-controls">
+      <button class="bal-btn" onclick="changeBalance(-1)">−</button>
+      <div class="bal-num" id="bal-display">0</div>
+      <button class="bal-btn" onclick="changeBalance(1)">+</button>
+    </div>
+  </div>
+
+  <!-- Add Entry -->
+  <div class="card add-card">
+    <div class="card-label">Add Entry</div>
+    <input type="date" class="date-input" id="date-pick">
+    <div class="btn-row">
+      <button class="btn btn-got" onclick="addEntry('got')">✅ Got Off</button>
+      <button class="btn btn-missed" onclick="addEntry('missed')">❌ Missed Off</button>
+    </div>
+  </div>
+
+  <!-- Export -->
+  <button class="export-btn" onclick="exportJPEG()">
+    ⬇ Download as JPEG
+  </button>
+
+  <!-- History -->
+  <div class="card history-card">
+    <div class="card-label">History Log</div>
+    <div id="history-container">
+      <div class="history-empty" id="history-empty">No entries yet. Add your first entry above ↑</div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  const CIRC = 2 * Math.PI * 54; // 339.292
+
+  let state = {
+    entries: [],
+    pendingBalance: 0
+  };
+
+  function load() {
+    const saved = localStorage.getItem('offdaytracker_v1');
+    if (saved) {
+      try { state = JSON.parse(saved); } catch(e) {}
+    }
+    // Set today's date as default
+    const today = new Date();
+    document.getElementById('date-pick').value = today.toISOString().split('T')[0];
+    render();
+  }
+
+  function save() {
+    localStorage.setItem('offdaytracker_v1', JSON.stringify(state));
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  function changeBalance(delta) {
+    state.pendingBalance = Math.max(0, state.pendingBalance + delta);
+    save();
+    render();
+  }
+
+  function addEntry(type) {
+    const dateVal = document.getElementById('date-pick').value;
+    if (!dateVal) { showToast('⚠️ Please select a date'); return; }
+
+    // Check duplicate
+    if (state.entries.find(e => e.date === dateVal)) {
+      showToast('⚠️ Entry already exists for this date');
+      return;
+    }
+
+    state.entries.push({ date: dateVal, type });
+
+    // Sort descending
+    state.entries.sort((a,b) => b.date.localeCompare(a.date));
+
+    if (type === 'missed') {
+      state.pendingBalance = Math.max(0, state.pendingBalance + 1);
+    }
+
+    save();
+    render();
+    showToast(type === 'got' ? '✅ Got Off added!' : '❌ Missed Off recorded');
+  }
+
+  function deleteEntry(date) {
+    const entry = state.entries.find(e => e.date === date);
+    if (!entry) return;
+
+    if (entry.type === 'missed') {
+      state.pendingBalance = Math.max(0, state.pendingBalance - 1);
+    }
+
+    state.entries = state.entries.filter(e => e.date !== date);
+    save();
+    render();
+    showToast('🗑️ Entry deleted');
+  }
+
+  function formatDate(dateStr) {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  function render() {
+    const got = state.entries.filter(e => e.type === 'got').length;
+    const missed = state.entries.filter(e => e.type === 'missed').length;
+    const total = got + missed;
+    const balance = state.pendingBalance;
+
+    // Stats
+    document.getElementById('stat-got').textContent = got;
+    document.getElementById('stat-missed').textContent = missed;
+    document.getElementById('stat-balance').textContent = balance;
+    document.getElementById('bal-display').textContent = balance;
+
+    // Legend
+    document.getElementById('leg-got').textContent = got + ' day' + (got !== 1 ? 's' : '');
+    document.getElementById('leg-missed').textContent = missed + ' day' + (missed !== 1 ? 's' : '');
+    document.getElementById('leg-bal').textContent = balance + ' day' + (balance !== 1 ? 's' : '');
+
+    // Donut chart
+    const gotArc = document.getElementById('donut-got');
+    const missedArc = document.getElementById('donut-missed');
+    const pctEl = document.getElementById('donut-pct');
+
+    if (total === 0) {
+      gotArc.setAttribute('stroke-dasharray', `0 ${CIRC}`);
+      missedArc.setAttribute('stroke-dasharray', `0 ${CIRC}`);
+      gotArc.setAttribute('stroke-dashoffset', '0');
+      missedArc.setAttribute('stroke-dashoffset', '0');
+      pctEl.textContent = '—';
+    } else {
+      const gotFrac = got / total;
+      const missedFrac = missed / total;
+      const gotLen = gotFrac * CIRC;
+      const missedLen = missedFrac * CIRC;
+      const pct = Math.round(gotFrac * 100);
+
+      gotArc.setAttribute('stroke-dasharray', `${gotLen} ${CIRC - gotLen}`);
+      gotArc.setAttribute('stroke-dashoffset', '0');
+
+      missedArc.setAttribute('stroke-dasharray', `${missedLen} ${CIRC - missedLen}`);
+      missedArc.setAttribute('stroke-dashoffset', `-${gotLen}`);
+
+      pctEl.textContent = pct + '%';
+    }
+
+    // History
+    const listEl = document.getElementById('history-list');
+    const emptyEl = document.getElementById('history-empty');
+
+    if (state.entries.length === 0) {
+      emptyEl.style.display = 'block';
+      listEl.innerHTML = '';
+    } else {
+      emptyEl.style.display = 'none';
+      listEl.innerHTML = state.entries.map(e => `
+        <div class="entry ${e.type === 'got' ? 'got-entry' : 'missed-entry'}">
+          <div class="entry-dot"></div>
+          <div class="entry-info">
+            <div class="entry-date">${formatDate(e.date)}</div>
+            <div class="entry-status">${e.type === 'got' ? '✅ Got Off' : '❌ Missed Off'}</div>
+          </div>
+          <button class="entry-del" onclick="deleteEntry('${e.date}')" title="Delete">✕</button>
+        </div>
+      `).join('');
+    }
+  }
+
+  async function exportJPEG() {
+    showToast('📸 Generating image...');
+    try {
+      // Build a clean export element
+      const exportEl = document.createElement('div');
+      exportEl.style.cssText = `
+        width: 480px;
+        background: #0a0a0f;
+        background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+        background-size: 40px 40px;
+        font-family: 'Syne', sans-serif;
+        color: #f1f5f9;
+        padding: 32px 28px;
+        box-sizing: border-box;
+      `;
+
+      const got = state.entries.filter(e => e.type === 'got').length;
+      const missed = state.entries.filter(e => e.type === 'missed').length;
+      const total = got + missed;
+      const balance = state.pendingBalance;
+      const pct = total > 0 ? Math.round((got/total)*100) : 0;
+
+      const recentEntries = state.entries.slice(0, 10).map(e => `
+        <div style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(255,255,255,0.04);border-radius:10px;border:1px solid rgba(255,255,255,0.08);border-left:3px solid ${e.type==='got'?'#22c55e':'#ef4444'}">
+          <div style="width:7px;height:7px;border-radius:50%;background:${e.type==='got'?'#22c55e':'#ef4444'};flex-shrink:0;"></div>
+          <div style="flex:1;font-family:'JetBrains Mono',monospace;font-size:11px;color:#f1f5f9;">${formatDate(e.date)}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:${e.type==='got'?'#22c55e':'#ef4444'};">${e.type==='got'?'✅ Got Off':'❌ Missed'}</div>
+        </div>
+      `).join('');
+
+      exportEl.innerHTML = `
+        <div style="text-align:center;margin-bottom:24px;">
+          <div style="display:inline-block;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#f59e0b;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.25);padding:4px 14px;border-radius:100px;margin-bottom:10px;">Weekly Tracker</div>
+          <div style="font-size:26px;font-weight:800;letter-spacing:-0.5px;line-height:1.1;">Off Day <span style="color:#f59e0b;">Tracker</span></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;margin-top:5px;">Yamin Ahmed · Personal Dashboard</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px;">
+          <div style="background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:12px;padding:14px 10px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#22c55e;">${got}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-top:4px;">Got Off</div>
+          </div>
+          <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;padding:14px 10px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#ef4444;">${missed}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-top:4px;">Missed</div>
+          </div>
+          <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:14px 10px;text-align:center;">
+            <div style="font-size:28px;font-weight:800;color:#f59e0b;">${balance}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:#64748b;margin-top:4px;">Balance</div>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;margin-bottom:12px;display:flex;align-items:center;gap:16px;">
+          <div style="text-align:center;min-width:80px;">
+            <div style="font-size:32px;font-weight:800;color:${total===0?'#64748b':'#22c55e'};">${total===0?'—':pct+'%'}</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;text-transform:uppercase;color:#64748b;letter-spacing:0.08em;">got off rate</div>
+          </div>
+          <div style="flex:1;">
+            <div style="margin-bottom:8px;">
+              <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;margin-bottom:4px;"><span>🟢 Got Off</span><span>${got}</span></div>
+              <div style="height:6px;background:rgba(255,255,255,0.07);border-radius:100px;overflow:hidden;"><div style="height:100%;width:${total===0?0:Math.round(got/total*100)}%;background:#22c55e;border-radius:100px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;margin-bottom:4px;"><span>🔴 Missed</span><span>${missed}</span></div>
+              <div style="height:6px;background:rgba(255,255,255,0.07);border-radius:100px;overflow:hidden;"><div style="height:100%;width:${total===0?0:Math.round(missed/total*100)}%;background:#ef4444;border-radius:100px;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        ${state.entries.length > 0 ? `
+        <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:18px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:#64748b;margin-bottom:12px;">History Log</div>
+          <div style="display:flex;flex-direction:column;gap:7px;">${recentEntries}</div>
+          ${state.entries.length > 10 ? `<div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#64748b;text-align:center;margin-top:8px;">... and ${state.entries.length-10} more entries</div>` : ''}
+        </div>` : ''}
+
+        <div style="text-align:center;margin-top:20px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#334155;">
+          Generated ${new Date().toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'})} · Off Day Tracker
+        </div>
+      `;
+
+      document.body.appendChild(exportEl);
+      exportEl.style.position = 'fixed';
+      exportEl.style.top = '-9999px';
+      exportEl.style.left = '0';
+
+      await new Promise(r => setTimeout(r, 300));
+
+      const canvas = await html2canvas(exportEl, {
+        backgroundColor: '#0a0a0f',
+        scale: 2,
+        useCORS: true,
+        logging: false
+      });
+
+      document.body.removeChild(exportEl);
+
+      const link = document.createElement('a');
+      link.download = `offday-tracker-yamin-${new Date().toISOString().split('T')[0]}.jpg`;
+      link.href = canvas.toDataURL('image/jpeg', 0.95);
+      link.click();
+
+      showToast('✅ Image downloaded!');
+    } catch(err) {
+      showToast('❌ Export failed. Try again.');
+      console.error(err);
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>
